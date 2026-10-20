@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -211,6 +212,31 @@ def _add_source_context(
     return "\n\n".join(parts)
 
 
+def _summary_title(document: TranscriptDocument) -> str:
+    meeting_context = document.source.metadata.context
+    if not meeting_context:
+        return str(document.source.title or "Meeting summary")
+
+    date_candidates = (
+        document.source.metadata.published_at,
+        document.source.title,
+        document.transcription.created_at,
+    )
+    meeting_date = next(
+        (
+            match.group(0)
+            for value in date_candidates
+            if value and (match := re.search(r"\b\d{4}-\d{2}-\d{2}\b", value))
+        ),
+        None,
+    )
+    return (
+        f"{meeting_context} — {meeting_date}"
+        if meeting_date
+        else meeting_context
+    )
+
+
 def _render_markdown(
     title: str,
     brief: MeetingBrief,
@@ -311,10 +337,9 @@ class OpenAISummaryProcessor(ProcessorModule):
             json.dumps(payload, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        title = str(document.source.title or "Meeting summary")
         markdown_path.write_text(
             _render_markdown(
-                title,
+                _summary_title(document),
                 brief,
                 meeting_context=document.source.metadata.context,
             ),
