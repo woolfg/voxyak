@@ -13,6 +13,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from .config import PipelineDefinition, VoxYakConfig, config_snapshot, load_pipeline
+from .metadata import PipelineMetadata, merge_metadata
 from .registry import ModuleRegistry
 from .sdk import (
     Artifact,
@@ -74,6 +75,7 @@ class ResolvedPipeline:
     input: ResolvedModule
     transcription: ResolvedModule
     processing: list[ResolvedModule]
+    metadata: PipelineMetadata
 
     def all_modules(self) -> list[ResolvedModule]:
         return [self.input, self.transcription, *self.processing]
@@ -130,7 +132,12 @@ class PipelineRunner:
             )
             for processor in pipeline.processing
         ]
-        return ResolvedPipeline(input_module, transcription, processors)
+        return ResolvedPipeline(
+            input=input_module,
+            transcription=transcription,
+            processing=processors,
+            metadata=pipeline.metadata,
+        )
 
     def validate_configuration(self, config: VoxYakConfig) -> None:
         for pipeline in config.pipelines.values():
@@ -236,13 +243,22 @@ class PipelineRunner:
             if input_record.status == "succeeded":
                 audio = self._single_artifact(input_record, AudioArtifact)
             else:
+                def run_input(context: RunContext) -> list[Artifact]:
+                    artifact = resolved.input.module.run(
+                        context,
+                        resolved.input.config,
+                    )
+                    artifact.metadata = merge_metadata(
+                        artifact.metadata,
+                        resolved.metadata,
+                    )
+                    return [artifact]
+
                 artifacts = self._run_stage(
                     run_dir,
                     manifest,
                     resolved.input,
-                    lambda context: [
-                        resolved.input.module.run(context, resolved.input.config)
-                    ],
+                    run_input,
                 )
                 audio = self._expect_artifact(artifacts[0], AudioArtifact)
 

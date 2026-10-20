@@ -9,6 +9,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .metadata import PipelineMetadata
+
 
 class ModuleSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -27,6 +29,7 @@ class PipelineDefinition(BaseModel):
     input: ModuleSpec
     transcription: ModuleSpec
     processing: list[ProcessorSpec] = Field(default_factory=list)
+    metadata: PipelineMetadata = Field(default_factory=PipelineMetadata)
 
     @model_validator(mode="after")
     def unique_processor_ids(self) -> "PipelineDefinition":
@@ -101,8 +104,19 @@ def redact_secrets(value: Any) -> Any:
 
 
 def config_snapshot(pipeline: PipelineDefinition) -> dict[str, Any]:
-    raw = {
-        "version": 1,
-        **pipeline.model_dump(mode="json", by_alias=True, exclude={"version"}),
-    }
+    pipeline_data = pipeline.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude={"version"},
+    )
+    metadata = pipeline.metadata.model_dump(
+        mode="json",
+        exclude_defaults=True,
+        exclude_none=True,
+    )
+    if metadata:
+        pipeline_data["metadata"] = metadata
+    else:
+        pipeline_data.pop("metadata", None)
+    raw = {"version": 1, **pipeline_data}
     return redact_secrets(raw)

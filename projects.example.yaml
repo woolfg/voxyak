@@ -1,0 +1,28 @@
+version: 1
+
+# Named destinations used by both automatic project runs and `make copy2`.
+targets:
+  salzburg-ag-shared:
+    destination: ./shared/salzburg-ag
+    folder_template: "{date}-{context_slug}"
+  internal-shared:
+    destination: ./shared/internal
+    folder_template: "{date}-{project_slug}-{context_slug}"
+
+# A project selects an existing pipeline, contributes stable context to every
+# processor, and optionally exports automatically after the pipeline succeeds.
+projects:
+  geht-e-sales:
+    pipeline: call-summary
+    type: sales
+    additional_context: |
+      The project and company name is spelled "geht-e".
+      Focus on sales outcomes, customer objections, owners, and next steps.
+    export_targets:
+      - salzburg-ag-shared
+  internal:
+    pipeline: call-summary
+    type: internal
+    additional_context: Focus on decisions, owners, deadlines, and delivery risks.
+    export_targets:
+      - internal-shared

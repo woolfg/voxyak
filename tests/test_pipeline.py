@@ -173,3 +173,28 @@ def test_manifest_is_written_after_failure(runner: PipelineRunner) -> None:
     assert manifest.stages[-1].status == "failed"
     assert "temporary failure" in str(manifest.stages[-1].error)
     assert (run_dir / "pipeline.yaml").is_file()
+
+
+def test_pipeline_metadata_is_available_to_transcription(
+    runner: PipelineRunner,
+) -> None:
+    pipeline = PipelineDefinition(
+        input=ModuleSpec(uses="fake-input"),
+        transcription=ModuleSpec(uses="fake-transcriber"),
+        metadata={
+            "project": "customer-sales",
+            "recording_type": "sales",
+            "project_context": "Preserve the spelling geht-e.",
+        },
+    )
+
+    manifest = runner.run_pipeline("project", pipeline)
+
+    transcript_metadata = manifest.stages[1].artifacts[0]["metadata"]
+    assert transcript_metadata["project"] == "customer-sales"
+    assert transcript_metadata["recording_type"] == "sales"
+    assert transcript_metadata["project_context"] == "Preserve the spelling geht-e."
+    snapshot = (runner.runs_dir / manifest.run_id / "pipeline.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "project: customer-sales" in snapshot
