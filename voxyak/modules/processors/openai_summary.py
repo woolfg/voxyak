@@ -189,8 +189,16 @@ def _add_source_context(document: TranscriptDocument, text: str) -> str:
     return f"Source metadata:\n{context}\n\nTranscript:\n{text}"
 
 
-def _render_markdown(title: str, brief: MeetingBrief) -> str:
-    lines = [f"# {title}", "", "## Overview", "", brief.overview]
+def _render_markdown(
+    title: str,
+    brief: MeetingBrief,
+    *,
+    meeting_context: str | None = None,
+) -> str:
+    lines = [f"# {title}"]
+    if meeting_context:
+        lines.extend(["", "## Meeting context", "", meeting_context])
+    lines.extend(["", "## Overview", "", brief.overview])
     sections: list[tuple[str, list[str]]] = [
         ("Key points", brief.key_points),
         ("Decisions", brief.decisions),
@@ -270,6 +278,7 @@ class OpenAISummaryProcessor(ProcessorModule):
             "schema_version": 1,
             "model": settings.model,
             "source_transcript": str(transcript.path),
+            "meeting_context": document.source.metadata.context,
             "brief": brief.model_dump(mode="json"),
         }
         json_path.write_text(
@@ -278,7 +287,11 @@ class OpenAISummaryProcessor(ProcessorModule):
         )
         title = str(document.source.title or "Meeting summary")
         markdown_path.write_text(
-            _render_markdown(title, brief),
+            _render_markdown(
+                title,
+                brief,
+                meeting_context=document.source.metadata.context,
+            ),
             encoding="utf-8",
         )
         output_metadata = transcript.metadata.model_copy(deep=True)

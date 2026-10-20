@@ -107,10 +107,13 @@ def test_summary_uses_structured_responses_without_storage(
     assert "Weekly delivery review" in calls[0]["input"][1]["content"]
     assert "Delivery Talks" in calls[0]["input"][1]["content"]
     payload = json.loads(outputs[0].path.read_text(encoding="utf-8"))
+    assert payload["meeting_context"] == "Weekly delivery review"
     assert payload["brief"]["action_items"][0]["owner"] == "Sam"
     assert outputs[0].metadata.context == "Weekly delivery review"
     assert outputs[0].metadata.producer_module == "openai-summary"
-    assert "## Action items" in outputs[1].path.read_text(encoding="utf-8")
+    markdown = outputs[1].path.read_text(encoding="utf-8")
+    assert "## Meeting context\n\nWeekly delivery review" in markdown
+    assert "## Action items" in markdown
 
 
 def test_refusal_does_not_write_summary(
