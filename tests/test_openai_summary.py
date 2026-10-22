@@ -31,7 +31,7 @@ def _artifact(tmp_path: Path) -> TranscriptArtifact:
     document = TranscriptDocument(
         source=TranscriptSource(
             module="file",
-            title="Team call",
+            title="call-2026-10-20-100322",
             audio_path="call.mp3",
             metadata={
                 "participants": "Sam and Alex",
@@ -114,6 +114,7 @@ def test_summary_uses_structured_responses_without_storage(
     assert outputs[0].metadata.context == "Weekly delivery review"
     assert outputs[0].metadata.producer_module == "openai-summary"
     markdown = outputs[1].path.read_text(encoding="utf-8")
+    assert markdown.startswith("# Weekly delivery review — 2026-10-20\n")
     assert "## Meeting context\n\nWeekly delivery review" in markdown
     assert "## Action items" in markdown
 
