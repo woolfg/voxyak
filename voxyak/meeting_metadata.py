@@ -18,7 +18,7 @@ def collect_meeting_metadata(console: Any) -> dict[str, str]:
     console.print("\n[bold]Optional meeting context[/bold] [dim](Enter to skip)[/dim]")
     values = {
         "participant_count": _ask(console, "Number of speakers: "),
-        "participants": _ask(console, "Speakers / participants: "),
+        "participants": _ask(console, "Speakers / participant names: "),
         "context": _ask(console, "Meeting context (one line): "),
     }
     return {key: value for key, value in values.items() if value}
