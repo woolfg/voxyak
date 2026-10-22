@@ -59,7 +59,7 @@ def test_recorder_keeps_tracks_and_creates_merged_audio(
             return self.returncode
 
     class FakeConsole:
-        responses = iter(["", "Alice, Bob", "about two", "Quarterly planning"])
+        responses = iter(["", "about two", "Alice, Bob", "Quarterly planning"])
 
         @staticmethod
         def print(*args, **kwargs):
