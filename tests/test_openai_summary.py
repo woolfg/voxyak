@@ -104,6 +104,8 @@ def test_summary_uses_structured_responses_without_storage(
     assert calls[0]["reasoning"] == {"effort": "low"}
     assert calls[0]["model"] == "gpt-5.6-terra"
     assert "Focus especially on delivery risks." in calls[0]["input"][0]["content"]
+    assert "meeting context is authoritative" in calls[0]["input"][0]["content"]
+    assert "preserve its exact spelling" in calls[0]["input"][1]["content"]
     assert "Weekly delivery review" in calls[0]["input"][1]["content"]
     assert "Delivery Talks" in calls[0]["input"][1]["content"]
     payload = json.loads(outputs[0].path.read_text(encoding="utf-8"))
@@ -194,6 +196,8 @@ def test_long_transcript_uses_map_reduce(
     )
     assert len(calls) == 3
     assert "partial briefs" in calls[-1]["input"][0]["content"]
+    assert "Partial briefs:" in calls[-1]["input"][1]["content"]
+    assert "Weekly delivery review" in calls[-1]["input"][1]["content"]
 
 
 def test_summarize_command_reuses_pipeline_settings(
