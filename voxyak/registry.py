@@ -132,6 +132,7 @@ def default_registry(*, discover_external: bool = True) -> ModuleRegistry:
     from .modules.inputs.call_recorder import CallRecorderInput
     from .modules.inputs.file import FileInput
     from .modules.inputs.podcast import PodcastIndexInput
+    from .modules.processors.artifact_export import ArtifactExportProcessor
     from .modules.processors.openai_summary import OpenAISummaryProcessor
     from .modules.processors.speaker_time import SpeakerTimeProcessor
     from .modules.transcribers.faster_whisper import FasterWhisperTranscriber
@@ -144,6 +145,7 @@ def default_registry(*, discover_external: bool = True) -> ModuleRegistry:
         ("faster-whisper", "transcription", FasterWhisperTranscriber),
         ("speaker-time", "processor", SpeakerTimeProcessor),
         ("openai-summary", "processor", OpenAISummaryProcessor),
+        ("artifact-export", "processor", ArtifactExportProcessor),
     ]
     for name, kind, module_class in builtins:
         registry.register(name, kind, module_class, source="VoxYak built-in")

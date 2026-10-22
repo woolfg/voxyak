@@ -1,6 +1,8 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-diarize validate modules podcast call transcribe diarize summarize analyze test lint clean
+.PHONY: help install install-diarize validate modules projects project copy2 podcast call transcribe diarize summarize analyze test lint clean
+
+projects_config ?= projects.yaml
 
 help:
 	@echo "VoxYak — modular audio transcription and processing"
@@ -9,6 +11,9 @@ help:
 	@echo "  make install-diarize  Install optional speaker diarization dependencies"
 	@echo "  make validate         Validate all pipeline files in pipelines/"
 	@echo "  make modules          List installed pipeline modules"
+	@echo "  make projects         List configured projects and export targets"
+	@echo "  make project project=<name>"
+	@echo "  make copy2 target=<name> run=<run-id>"
 	@echo "  make podcast          Run the podcast transcription pipeline"
 	@echo "  make call             Record, transcribe, and summarize a call"
 	@echo "  make transcribe file=<audio> [lang=<code>]"
@@ -31,6 +36,17 @@ validate:
 
 modules:
 	uv run voxyak modules
+
+projects:
+	uv run voxyak --projects-config "$(projects_config)" projects list
+
+project:
+	@if [ -z "$(project)" ]; then echo "Usage: make project project=<name> [projects_config=<path>]"; exit 1; fi
+	uv run voxyak --projects-config "$(projects_config)" projects run "$(project)"
+
+copy2:
+	@if [ -z "$(target)" ] || [ -z "$(run)" ]; then echo "Usage: make copy2 target=<name> run=<run-id> [projects_config=<path>]"; exit 1; fi
+	uv run voxyak --projects-config "$(projects_config)" projects export "$(target)" "$(run)"
 
 podcast:
 	uv run voxyak run podcast

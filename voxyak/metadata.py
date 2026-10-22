@@ -18,6 +18,9 @@ class PipelineMetadata(BaseModel):
     title: str | None = None
     description: str | None = None
     context: str | None = None
+    project: str | None = None
+    recording_type: str | None = None
+    project_context: str | None = None
     participants: str | None = None
     participant_count: str | None = None
     creator: str | None = None
@@ -36,6 +39,9 @@ def format_metadata(metadata: PipelineMetadata) -> str | None:
         ("Title", metadata.title),
         ("Description", metadata.description),
         ("Context", metadata.context),
+        ("Project", metadata.project),
+        ("Recording type", metadata.recording_type),
+        ("Project context", metadata.project_context),
         ("Participants", metadata.participants),
         ("Participant count", metadata.participant_count),
         ("Creator", metadata.creator),
@@ -46,3 +52,19 @@ def format_metadata(metadata: PipelineMetadata) -> str | None:
     ]
     lines = [f"{label}: {value}" for label, value in values if value]
     return "\n".join(lines) or None
+
+
+def merge_metadata(
+    base: PipelineMetadata,
+    additions: PipelineMetadata,
+) -> PipelineMetadata:
+    """Overlay configured metadata while retaining input-specific values."""
+    merged = base.model_copy(deep=True)
+    values = additions.model_dump(
+        exclude={"schema_version", "attributes"},
+        exclude_none=True,
+    )
+    for field, value in values.items():
+        setattr(merged, field, value)
+    merged.attributes.update(additions.attributes)
+    return merged

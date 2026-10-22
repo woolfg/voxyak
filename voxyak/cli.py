@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -25,6 +26,12 @@ from .modules.transcribers.faster_whisper import (
     diarize_transcript_file,
 )
 from .pipeline import PipelineRunError, PipelineRunner
+from .projects import (
+    build_project_pipeline,
+    default_projects_path,
+    export_run,
+    load_projects,
+)
 from .registry import RegistryError, default_registry
 from .sdk import RunContext, TranscriptArtifact
 from .transcript import load_transcript
@@ -50,6 +57,15 @@ def _parser() -> argparse.ArgumentParser:
         default=default_runs_dir(),
         help="Run artifact directory (default: runs or VOXYAK_RUNS_DIR).",
     )
+    parser.add_argument(
+        "--projects-config",
+        type=Path,
+        default=default_projects_path(),
+        help=(
+            "Project/target YAML file "
+            "(default: projects.yaml or VOXYAK_PROJECTS_CONFIG)."
+        ),
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     pipelines = commands.add_parser("pipelines", help="Inspect pipeline definitions.")
@@ -61,6 +77,28 @@ def _parser() -> argparse.ArgumentParser:
         "validate", help="Validate YAML and module configurations."
     )
     validate.add_argument("pipeline", nargs="?", help="Validate one pipeline only.")
+
+    projects = commands.add_parser(
+        "projects",
+        help="List, validate, run, and export named project profiles.",
+    )
+    project_commands = projects.add_subparsers(
+        dest="projects_command",
+        required=True,
+    )
+    project_commands.add_parser("list", help="List projects and export targets.")
+    project_commands.add_parser("validate", help="Validate all project profiles.")
+    project_run = project_commands.add_parser(
+        "run",
+        help="Run a project's pipeline and configured automatic exports.",
+    )
+    project_run.add_argument("project")
+    project_export = project_commands.add_parser(
+        "export",
+        help="Copy an existing run to a named export target.",
+    )
+    project_export.add_argument("target")
+    project_export.add_argument("run_id", help="Run id or path to a run directory.")
 
     commands.add_parser("modules", help="List installed modules.")
 
@@ -166,6 +204,70 @@ def _list_modules(args) -> None:
     for item in registry.list():
         table.add_row(item.kind, item.name, item.version, item.source)
     console.print(table)
+
+
+def _list_projects(args) -> None:
+    config = load_projects(args.projects_config)
+    project_table = Table(title="Projects", box=box.SIMPLE_HEAD)
+    project_table.add_column("Project", style="bold")
+    project_table.add_column("Type")
+    project_table.add_column("Pipeline")
+    project_table.add_column("Automatic exports")
+    for name, project in config.projects.items():
+        project_table.add_row(
+            name,
+            project.recording_type or "—",
+            project.pipeline,
+            ", ".join(project.export_targets) or "—",
+        )
+    console.print(project_table)
+
+    target_table = Table(title="Export targets", box=box.SIMPLE_HEAD)
+    target_table.add_column("Target", style="bold")
+    target_table.add_column("Destination")
+    target_table.add_column("Folder template")
+    for name, target in config.targets.items():
+        target_table.add_row(
+            name,
+            str(target.destination),
+            target.folder_template,
+        )
+    console.print(target_table)
+
+
+def _validate_projects(args) -> None:
+    projects = load_projects(args.projects_config)
+    pipelines = load_config(args.config)
+    runner = _runner(args)
+    for name in projects.projects:
+        _, pipeline = build_project_pipeline(name, projects, pipelines)
+        runner.resolve(pipeline)
+    console.print(
+        f"[green]Valid:[/green] {len(projects.projects)} project(s) and "
+        f"{len(projects.targets)} export target(s) in {args.projects_config}"
+    )
+
+
+def _run_project(args) -> None:
+    projects = load_projects(args.projects_config)
+    pipeline_name, pipeline = build_project_pipeline(
+        args.project,
+        projects,
+        load_config(args.config),
+    )
+    _runner(args).run_pipeline(f"{args.project}:{pipeline_name}", pipeline)
+
+
+def _export_project_result(args) -> None:
+    outputs = export_run(
+        _runner(args),
+        args.run_id,
+        args.target,
+        load_projects(args.projects_config),
+    )
+    receipt = json.loads(outputs[0].path.read_text(encoding="utf-8"))
+    console.print("[bold green]Export complete.[/bold green]")
+    console.print(receipt["destination"])
 
 
 def _transcribe(args) -> None:
@@ -301,6 +403,15 @@ def main(argv: list[str] | None = None) -> int:
                 _list_pipelines(args)
             else:
                 _validate_pipelines(args)
+        elif args.command == "projects":
+            if args.projects_command == "list":
+                _list_projects(args)
+            elif args.projects_command == "validate":
+                _validate_projects(args)
+            elif args.projects_command == "run":
+                _run_project(args)
+            else:
+                _export_project_result(args)
         elif args.command == "modules":
             _list_modules(args)
         elif args.command == "run":
